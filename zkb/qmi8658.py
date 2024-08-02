@@ -40,6 +40,8 @@ PATTERN_XYZ = const("<hhh")
 RESOLUTION = const(1 << (2 * 8))
 
 STANDARD_GRAVITY = const(9.80665)
+PI = const(3.1415926535897932)
+DEGREE = const(0.01745329)  # PI / 180
 
 
 class QMI8658:
@@ -136,7 +138,7 @@ class QMI8658:
         data &= 0b11111100
         self.write_byte(REG_CTRL7, data)
 
-    def read_acceleration(self, mps2=False):
+    def read_accelerometer(self, mps2=False):
         bs = self.read_reg(REG_AX_L, 6)
         x, y, z = struct.unpack(PATTERN_XYZ, bs)
         x /= self.acc_scale
@@ -146,4 +148,18 @@ class QMI8658:
             x *= STANDARD_GRAVITY
             y *= STANDARD_GRAVITY
             z *= STANDARD_GRAVITY
+        return x, y, z
+
+    def read_gyproscope(self):
+        bs = self.read_reg(REG_GX_L, 6)
+        x, y, z = struct.unpack(PATTERN_XYZ, bs)
+        
+        x /= self.gyro_scale
+        y /= self.gyro_scale
+        z /= self.gyro_scale
+
+        x *= DEGREE
+        y *= DEGREE
+        z *= DEGREE
+
         return x, y, z

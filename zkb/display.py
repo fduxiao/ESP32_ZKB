@@ -5,7 +5,7 @@ class Display(SSD1306_I2C):
     def __init__(self, width, height, i2c, addr=0x3C):
         super().__init__(width, height, i2c, addr)
 
-    def write_xyz(self, func):
+    def draw_xyz(self, func):
         while True:
             x, y, z = func()
             self.fill(0)

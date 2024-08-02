@@ -2,6 +2,8 @@ from micropython import const
 import struct
 import time
 
+from .i2c_device import I2CDevice, RegByte, RegStructure
+
 QMI8658_ADDR = const(0x6A)
 QMI8658_ADDR2 = const(0x6B)
 
@@ -44,12 +46,21 @@ PI = const(3.1415926535897932)
 DEGREE = const(0.01745329)  # PI / 180
 
 
-class QMI8658:
-    def __init__(self, i2c, addr=QMI8658_ADDR2) -> None:
-        self.i2c = i2c
-        self.addr = addr
+class QMI8658(I2CDevice):
+    who_am_i = RegByte(REG_WHO_AM_I)
+    reset = RegByte(REG_RST)
+    reg_4d = RegByte(0x4D)
+    acc_config = RegByte(REG_CTRL2)
+    gyro_config = RegByte(REG_CTRL3)
 
-        who_am_i = self.who_am_i()
+    reg_enable = RegByte(REG_CTRL7)
+    acc_data = RegStructure(REG_AX_L, PATTERN_XYZ)
+    gyro_data = RegStructure(REG_GX_L, PATTERN_XYZ)
+
+    def __init__(self, i2c, addr=QMI8658_ADDR2) -> None:
+        super().__init__(i2c, addr)
+
+        who_am_i = self.who_am_i
         if who_am_i != VAL_SENSOR_ID:
             raise NotImplementedError("unknown identity", who_am_i)
         
@@ -57,23 +68,6 @@ class QMI8658:
         self.gyro_scale = 1
         self.init()
 
-    def read_byte(self, reg):
-        return self.i2c.readfrom_mem(self.addr, reg, 1)[0]
-
-    def read_reg(self, reg, length):
-        bs = bytearray()
-        for i in range(length):
-            bs.append(
-                self.read_byte(reg + i)
-            )
-        return bs
-    
-    def write_byte(self, reg, x):
-        return self.i2c.writeto_mem(self.addr, reg, bytearray([x]))
-    
-    def who_am_i(self):
-        return self.read_byte(REG_WHO_AM_I)
-    
     def init(self):
         self.reset()
         self.enable()
@@ -85,9 +79,9 @@ class QMI8658:
         self.set_gyroscope_scale()
 
     def reset(self):
-        self.write_byte(REG_RST, VAL_RST)
+        self.reset = VAL_RST
         time.sleep_ms(10)
-        if self.read_byte(0x4D) != 0x80:
+        if self.reg_4d != 0x80:
             raise RuntimeError("fail to reset QMI8658")
 
     def set_accelerometer_scale(self, scale=2):
@@ -103,7 +97,7 @@ class QMI8658:
         else:
             raise ValueError('only 2, 4, 8, 16 g are supported for scale')
         bits <<= 3
-        self.write_byte(REG_CTRL2, bits)
+        self.acc_config = bits
         self.acc_scale = RESOLUTION // scale // 2
 
     def set_gyroscope_scale(self, scale=16):
@@ -125,22 +119,22 @@ class QMI8658:
         else:
             raise ValueError('only 16, 32, 64, 128, 256, 512, 1024 degree per second are supported for scale')
         bits <<= 3
-        self.write_byte(REG_CTRL3, bits)
+        self.gyro_config = bits
         self.gyro_scale = RESOLUTION // scale // 2
 
     def enable(self):
-        data = self.read_byte(REG_CTRL7)
+        data = self.reg_enable
         data |= 0b11
-        self.write_byte(REG_CTRL7, data)
+        self.reg_enable = data
     
     def disable(self):
-        data = self.read_byte(REG_CTRL7)
+        data = self.reg_enable
         data &= 0b11111100
-        self.write_byte(REG_CTRL7, data)
+        self.reg_enable = data
 
     def read_accelerometer(self, mps2=False):
-        bs = self.read_reg(REG_AX_L, 6)
-        x, y, z = struct.unpack(PATTERN_XYZ, bs)
+        x, y, z = self.acc_data
+
         x /= self.acc_scale
         y /= self.acc_scale
         z /= self.acc_scale
@@ -151,8 +145,7 @@ class QMI8658:
         return x, y, z
 
     def read_gyproscope(self):
-        bs = self.read_reg(REG_GX_L, 6)
-        x, y, z = struct.unpack(PATTERN_XYZ, bs)
+        x, y, z = self.gyro_data
         
         x /= self.gyro_scale
         y /= self.gyro_scale

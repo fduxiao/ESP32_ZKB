@@ -5,6 +5,7 @@ import ntptime
 from .display import Display
 from .music import Music
 from .qmi8658 import QMI8658
+from .mmc5983 import MMC5983
 
 
 timezone = 8
@@ -82,3 +83,4 @@ oled = Display(128, 64, i2c0)
 
 
 acc_gyro = QMI8658(i2c0)
+magnetic = MMC5983(i2c0)

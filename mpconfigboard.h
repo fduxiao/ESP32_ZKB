@@ -8,3 +8,5 @@
 #ifndef MICROPY_HW_MCU_NAME
 #define MICROPY_HW_MCU_NAME "ESP32"
 #endif
+
+#define MICROPY_PY_WEAKREF 1

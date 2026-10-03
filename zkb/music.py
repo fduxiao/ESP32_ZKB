@@ -8,7 +8,7 @@ class Music:
         self.buzz = buzz
         self.pwm = None
 
-    def pwm(self, freq, duty=None, duty_u16=None, duty_ns=None):
+    def _pwm(self, freq, duty=None, duty_u16=None, duty_ns=None):
         if duty is not None:
             self.pwm = PWM(self.buzz, freq=freq, duty=duty)
         elif duty_u16 is not None:
@@ -26,11 +26,11 @@ class Music:
     stop = deinit
 
     def pitch(self, freq, duration_ms=50, volume=512):
-        self.pwm(freq, volume)
+        self._pwm(freq, duty=volume)
         time.sleep_ms(duration_ms)
         self.stop()
 
     async def pitch_async(self, freq, duration_ms=50, volume=512):
-        self.pwm(freq, volume)
+        self._pwm(freq, duty=volume)
         await asyncio.sleep_ms(duration_ms)
         self.stop()
